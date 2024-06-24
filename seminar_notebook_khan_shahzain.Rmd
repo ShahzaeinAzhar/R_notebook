@@ -1,0 +1,1712 @@
+---
+title: "Trends and Patterns in Fraud and Cybercrime Complaints in Canada: A 2021-2024 Analysis"
+subtitle: "Seminar Paper in the field of Applied Macroeconomics"
+date: "`r format(Sys.time(), '%d-%B-%Y')`"
+author:
+  - name: "Shahzain Khan - (MSc. Economics)"
+output: bookdown::html_document2
+css: style.css
+bibliography: reference.bib
+csl: apa.csl
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- CODE BLOCK: SETUP INCL. LIBRARY MGT. -->
+
+```{r setup, include = FALSE}
+# ==========================================================================================================
+#
+#
+#           CODE BLOCK: SETUP INCL. LIBRARY MGT.
+#
+# ==========================================================================================================
+
+# Install necessary packages if not already installed
+if (!require(bookdown)) install.packages("bookdown")
+if (!require(openxlsx)) install.packages("openxlsx")
+if (!require(nnet)) install.packages("nnet") # For multinomial logistic regression
+if (!require(glmnet)) install.packages("glmnet")
+if (!require(forecast)) install.packages("forecast")
+if (!require(ggrepel)) install.packages("ggrepel")
+if (!require(ggplot2)) install.packages("ggplot2")
+if (!require(dplyr)) install.packages("dplyr")
+if (!require(scales)) install.packages("scales")
+if (!require(scales)) install.packages("forcats")
+if (!require(here)) install.packages("here")
+if (!require(tidytext)) install.packages("tidytext")
+if (!require(ggthemes)) install.packages("ggthemes")
+if (!require(tidyr)) install.packages("tidyr")
+if (!require(sf)) install.packages("sf")
+if (!require(stringr)) install.packages("stringr")
+if (!require(dendextend)) install.packages("dendextend")
+if (!require(ggdendro)) install.packages("ggdendro")
+if (!require(ape)) install.packages("ape")
+if (!require(circlize)) install.packages("circlize")
+if (!require(htmlwidgets)) install.packages("htmlwidgets")
+if (!require(packcircles)) install.packages("packcircles")
+if (!require(ggiraph)) install.packages("ggiraph")
+if (!require(treemapify)) install.packages("treemapify")
+if (!require(cowplot)) install.packages("cowplot")
+if (!require(viridis)) install.packages("viridis")
+if (!require(ggalt)) install.packages("ggalt")
+if (!require(lubridate)) install.packages("lubridate")
+if (!require(treemapify)) install.packages("treemapify")
+if (!require(patchwork)) install.packages("patchwork")
+if (!require(rmarkdown)) install.packages("rmarkdown")
+if (!require(gridExtra)) install.packages("gridExtra")
+
+# Load necessary libraries
+library(bookdown)
+library(openxlsx)
+library(glmnet)
+library(forecast)
+library(nnet)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(ggrepel)
+library(forcats)
+library(here)
+library(treemapify)
+library(lubridate)
+library(tidytext)
+library(sf)
+library(ggthemes)
+library(gridExtra)
+library(grid)
+library(tidyr)
+library(stringr)
+library(dendextend)
+library(ggdendro)
+library(ape)
+library(circlize)
+library(htmlwidgets)
+library(packcircles)
+library(ggiraph)
+library(viridis)
+library(rmarkdown)
+
+
+knitr::opts_chunk$set(echo = FALSE,
+                      results = "hide",
+                      error=FALSE,
+                      warning=FALSE,
+                      message=FALSE,
+                      fig.dim = c(10, 7)
+                      )
+
+accessible_palette <- c(
+  "#407FB2", "#4CA256", "#B23E3E", "#8F63B6", "#C97933",
+  "#A7665B", "#7EA2A8", "#E89F71", "#6B9F6F", "#E679A3",
+  "#5B83AD", "#9C5E3C", "#68839B", "#CC915E", "#5C6A9E"
+)
+
+```
+
+<!-- CODE BLOCK: FOR PLOT ONLY -->
+
+```{r, include = FALSE}
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: FOR PLOT ONLY
+#
+# ==========================================================================================================
+
+data <- read.csv(file="C:/users/Fujitsu/Desktop/R-project/fraud_detection.csv", check.names = FALSE, header = TRUE)
+
+# Rename columns
+renamed_col <- data %>%
+  rename(
+    Number_ID = "Num\xe9ro d'identification / Number ID",
+    Date_Received = "Date Received / Date re\xe7ue",
+    Complaint_Received_Type = "Complaint Received Type",
+    Complaint_Received_Type_French= "Type de plainte re\xe7ue",
+    Country = "Country",
+    Pays = "Pays",
+    Province_State = "Province/State",
+    Province_State_French = "Province/\xc9tat",
+    Fraud_and_Cybercrime_Thematic_Categories = "Fraud and Cybercrime Thematic Categories",
+    Fraud_and_Cybercrime_Thematic_Categories_French = "Cat\xe9gories th\xe9matiques sur la fraude et la cybercriminalit\xe9",
+    Solicitation_Method = "Solicitation Method",
+    Solicitation_Method_French = "M\xe9thode de sollicitation",
+    Gender = "Gender",
+    Genre = "Genre",
+    Language_of_Correspondence = "Language of Correspondence",
+    Language_of_Correspondence_French = "Langue de correspondance",
+    Victim_Age_Range = "Victim Age Range / Tranche d'\xe2ge des victimes",
+    Complaint_Type = "Complaint Type",
+    Complaint_Type_French = "Type de plainte",
+    Number_of_Victims = "Number of Victims / Nombre de victimes",
+    Dollar_Loss = "Dollar Loss /pertes financi\xe8res"
+  )
+
+# Filter for entries containing "Canada" (case-insensitive)
+renamed_col <- renamed_col[grepl("Canada", renamed_col$Country, ignore.case = TRUE), ]
+
+# Remove French columns
+cleaned_data <- renamed_col %>%
+  select(
+    -Complaint_Received_Type_French,
+    -Pays,
+    -Province_State_French,
+    -Fraud_and_Cybercrime_Thematic_Categories_French,
+    -Solicitation_Method_French,
+    -Genre,
+    -Language_of_Correspondence_French,
+    -Complaint_Type_French
+  )
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: GENDER DISTRIBUTION PLOT ONLY
+#
+# ==========================================================================================================
+
+# Calculate the gender distribution
+gender_distribution_plot <- cleaned_data %>%
+  count(Gender) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+# Define threshold for combining categories
+threshold <- 10  # Combine categories with percentage less than 1%
+
+# Create a new category for combined groups
+other_category <- "Other"
+
+# Filter and combine categories below the threshold
+combined_data_gender_plot <- gender_distribution_plot %>%
+  filter(percentage >= threshold) %>%
+  bind_rows(
+    gender_distribution_plot %>%
+      filter(percentage < threshold) %>%
+      summarise(Gender = other_category, n = sum(n), percentage = sum(percentage))
+  )
+
+
+# ==========================================================================================================
+#
+#           GENDER DISTRIBUTION GRAPH
+#
+# ==========================================================================================================
+
+gender_bar_chart <- ggplot(combined_data_gender_plot, aes(x = percentage, y = reorder(Gender, percentage), fill = Gender)) +
+  geom_bar(stat = "identity", width = 0.2) +  # Adjust width to 0.4 (less space)
+  geom_text(aes(label = paste0(round(percentage, 1), "%")), hjust = -0.1, size = 4, color = "black", position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = accessible_palette) +  # Adjust color palette if needed
+  labs(title = "Gender Distribution of Affected Individuals",
+       y = "Gender",
+       x = "Percentage",
+       fill = "Category Breakdown") +  # Set legend title here
+  theme_minimal() +
+  theme(
+    plot.title = element_text( hjust = 0.5),
+    axis.text.y = element_text(size = 10),  # Adjust text size here
+    axis.text.x = element_text(size = 12),
+    legend.title = element_text(margin = margin(b = 10)),  # Add margin to legend title
+    legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+    legend.position = "right"  # Show legend on the right
+  ) +
+  coord_cartesian(xlim = c(0, max(combined_data_gender_plot$percentage) + 0.01))
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: MOST OCCURRED FRAUD BY GENDER PLOT ONLY
+#
+# ==========================================================================================================
+
+# Filter out rows with missing Gender or Fraud and Cybercrime Thematic Categories
+filtered_data_most_occurred_fraud_by_gender <- cleaned_data[!is.na(cleaned_data$Gender) & !is.na(cleaned_data$Fraud_and_Cybercrime_Thematic_Categories), ]
+
+# Calculate the count of occurrences for each combination of Gender and Fraud and Cybercrime Thematic Categories
+gender_fraud_category_counts <- filtered_data_most_occurred_fraud_by_gender %>%
+  count(Gender, Fraud_and_Cybercrime_Thematic_Categories)
+
+# Filter data to include only the top 5 most occurred Fraud and Cybercrime Thematic Categories
+top_categories <- gender_fraud_category_counts %>%
+  arrange(desc(n)) %>%
+  slice(1:9)  # Select the top 5 categories
+
+# Filter data to include only male and female genders
+filtered_data_most_occurred_fraud_by_gender <- cleaned_data %>%
+  filter(Gender %in% c("Male", "Female")) %>%
+  filter(Fraud_and_Cybercrime_Thematic_Categories %in% top_categories$Fraud_and_Cybercrime_Thematic_Categories)
+
+# Calculate counts of gender and Fraud and Cybercrime Thematic Categories
+filtered_counts_most_occurred_fraud_by_gender <- filtered_data_most_occurred_fraud_by_gender %>%
+  count(Gender, Fraud_and_Cybercrime_Thematic_Categories)
+
+# Remove duplicated levels in Fraud and Cybercrime Thematic Categories
+filtered_counts_most_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories <- factor(filtered_counts_most_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories)
+
+# Reorder Fraud and Cybercrime Thematic Categories based on count
+filtered_counts_most_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories <- factor(filtered_counts_most_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories, levels = unique(top_categories$Fraud_and_Cybercrime_Thematic_Categories))
+
+# ==========================================================================================================
+#
+#           MOST OCCURRED FRAUD BY GENDER GRAPH
+#
+# ==========================================================================================================
+
+# Create a plot to visualize the relationship between gender and Fraud and Cybercrime Thematic Categories
+gender_most_fraud_category_by_gender_plot <- ggplot(filtered_counts_most_occurred_fraud_by_gender, aes(x = Fraud_and_Cybercrime_Thematic_Categories, y = n, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = n), vjust = -0.5, position = position_dodge(width = 0.9), color = "black", size = 3) +  # Add labels for occurrence counts
+  labs(title = "Relationship between Gender and Occurrence of Most Fraud/Cybercrime Categories",
+       x = "Fraud and Cybercrime Thematic Categories",
+       y = "Count") +
+  scale_fill_manual(values = accessible_palette, name = "Gender", labels = c("Male", "Female")) +  # Set the color palette and legend title
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 10)),  # Add margin between x-axis title and labels
+    axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+    axis.title = element_text(margin = margin(b = 10)),
+    plot.title = element_text(hjust = 0.5),
+    axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    legend.title = element_text(margin = margin(b = 10)),  # Add margin to legend title
+    legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+    legend.position = "right"  # Show legend on the right
+  )
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: LEAST OCCURRED FRAUD BY GENDER PLOT ONLY
+#
+# ==========================================================================================================
+
+# Filter out rows with missing Gender or Fraud and Cybercrime Thematic Categories
+filtered_data_fraud_by_gender <- cleaned_data[!is.na(cleaned_data$Gender) & !is.na(cleaned_data$Fraud_and_Cybercrime_Thematic_Categories), ]
+
+# Calculate the count of occurrences for each combination of Gender and Fraud and Cybercrime Thematic Categories
+gender_fraud_category_counts_least_plot <- filtered_data_fraud_by_gender %>%
+  count(Gender, Fraud_and_Cybercrime_Thematic_Categories)
+
+# Filter data to include least occurred Fraud and Cybercrime Thematic Categories
+least_categories <- gender_fraud_category_counts_least_plot %>%
+  arrange(n) %>%
+  slice(1:8)  # Select the least 5 categories
+
+filtered_data_least_occurred_fraud_by_gender <- cleaned_data %>%
+  filter(Gender %in% c("Male", "Female")) %>%
+  filter(Fraud_and_Cybercrime_Thematic_Categories %in% c(least_categories$Fraud_and_Cybercrime_Thematic_Categories))
+
+# Calculate counts of gender and Fraud and Cybercrime Thematic Categories
+filtered_counts_least_occurred_fraud_by_gender <- filtered_data_least_occurred_fraud_by_gender %>%
+  count(Gender, Fraud_and_Cybercrime_Thematic_Categories)
+
+# Aggregate counts for duplicated categories
+filtered_counts_least_occurred_fraud_by_gender <- filtered_counts_least_occurred_fraud_by_gender %>%
+  group_by(Gender, Fraud_and_Cybercrime_Thematic_Categories) %>%
+  summarise(n = sum(n), .groups = "drop") %>%
+  ungroup()
+
+# Remove duplicated levels in Fraud and Cybercrime Thematic Categories
+filtered_counts_least_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories <- factor(filtered_counts_least_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories)
+
+# Reorder Fraud and Cybercrime Thematic Categories based on count
+all_categories <- c(least_categories$Fraud_and_Cybercrime_Thematic_Categories)
+filtered_counts_least_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories <- factor(filtered_counts_least_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories, levels = unique(all_categories))
+
+# Order categories by count
+ordered_categories <- filtered_counts_least_occurred_fraud_by_gender %>%
+  group_by(Fraud_and_Cybercrime_Thematic_Categories) %>%
+  summarise(total_count = sum(n)) %>%
+  arrange(total_count) %>%
+  pull(Fraud_and_Cybercrime_Thematic_Categories)
+
+# Reorder levels
+filtered_counts_least_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories <- factor(filtered_counts_least_occurred_fraud_by_gender$Fraud_and_Cybercrime_Thematic_Categories, levels = ordered_categories)
+
+# ==========================================================================================================
+#
+#           LEAST OCCURRED FRAUD BY GENDER GRAPH
+#
+# ==========================================================================================================
+
+gender_least_fraud_category_by_gender_plot <- ggplot(filtered_counts_least_occurred_fraud_by_gender, aes(x = fct_rev(Fraud_and_Cybercrime_Thematic_Categories), y = n, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = n), vjust = -0.5, position = position_dodge(width = 0.9), color = "black", size = 3) +  # Add labels for occurrence counts
+  labs(title = "Relationship between Gender and Occurrence of Least Fraud/Cybercrime Categories",
+       x = "Fraud and Cybercrime Thematic Categories",
+       y = "Count") +
+  scale_fill_manual(values = accessible_palette, name = "Gender", labels = c("Male", "Female")) +  # Set the color palette and legend title
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 10)),  # Add margin between x-axis title and labels
+    axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+    axis.title = element_text(margin = margin(b = 10)),
+    plot.title = element_text(hjust = 0.5),
+    axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    legend.title = element_text(margin = margin(b = 10)),  # Add margin to legend title
+    legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+    legend.position = "right"  # Show legend on the right
+  )
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: VICTIM BY AGE & COMPLAINT TYPE PLOT ONLY
+#
+# ==========================================================================================================
+
+# Filter and select specific columns
+filtered_gender_age_complaint_type_data <- cleaned_data %>%
+  filter(Victim_Age_Range != "Not Available / non disponible", 
+         Complaint_Type %in% c("Victim", "Attempt")) %>%
+  select(Victim_Age_Range, Complaint_Type)
+
+# Define the desired order of age ranges
+age_range_order <- c("'1 - 9", "'10 - 19", "'20 - 29", "'30 - 39", "'40 - 49",
+                     "'50 - 59", "'60 - 69", "'70 - 79", "'80 - 89", "'90 - 99",
+                     "'100 +", "'Business / Entreprise", "Deceased")
+
+# Count occurrences of each age group and complaint type
+age_complaint_counts <- filtered_gender_age_complaint_type_data %>%
+  group_by(Victim_Age_Range, Complaint_Type) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Complaint_Type, values_from = count, values_fill = 0) %>%
+  filter(Victim_Age_Range != "'Not Available / non disponible") %>%
+  mutate(Victim_Age_Range = str_replace(Victim_Age_Range, "'Deceased / D�c�d�", "Deceased")) %>%  # Replace 'Deceased / D�c�d�' with 'Deceased'
+  mutate(Victim_Age_Range = factor(Victim_Age_Range, levels = age_range_order))  # Reorder levels
+
+age_complaint_counts_long <- pivot_longer(age_complaint_counts, cols = c(Attempt, Victim), names_to = "Complaint_Type", values_to = "Count")
+
+# ==========================================================================================================
+#
+#           VICTIM BY AGE & COMPLAINT TYPE GRAPH
+#
+# ==========================================================================================================
+
+# Create stacked bar plot
+victim_age_complaint_type_stacked_bar_plot <- ggplot(age_complaint_counts_long, aes(x = Victim_Age_Range, y = Count, fill = Complaint_Type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Victims by Age and Complaint Type", x = "Age", y = "Count", fill = "Complaint Type") +
+  scale_fill_manual(values = accessible_palette) +  # Custom colors for Attempt and Victim
+  theme_minimal() +
+  theme( axis.title.x = element_text(margin = margin(t = 10), hjust = 0.5),  # Add margin between x-axis title and labels
+         axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+         axis.title = element_text(margin = margin(b = 10)),
+         plot.title = element_text(hjust = 0.5),
+         panel.grid.minor = element_blank(),
+         axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+         axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+         legend.title = element_text( margin = margin(b = 10)),  # Add margin to legend title
+         legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+         legend.position = "right"  # Show legend on the right
+  )
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: BUBBLE CHART FOR MONETARY LOSS, AGE AND GENDER PLOT ONLY
+#
+# ==========================================================================================================
+
+# Convert Dollar_Loss to numeric
+cleaned_dollar_loss_numeric_data <- cleaned_data %>%
+  mutate(Dollar_Loss_numeric = as.numeric(gsub("[^0-9.-]", "", Dollar_Loss)))
+
+# Filter out rows with missing Gender and Victim_Age_Range and exclude special values
+filtered_missing_data <- cleaned_dollar_loss_numeric_data %>%
+  filter(Gender %in% c("Male", "Female") & 
+           !is.na(Gender) & 
+           !is.na(Victim_Age_Range) &
+           !Victim_Age_Range %in% c("'Not Available / non disponible", "'Deceased / D�c�d�"))
+
+# Convert Victim_Age_Range and Gender to ASCII characters
+filtered_missing_data <- filtered_missing_data %>%
+  mutate(Victim_Age_Range_ASCII = iconv(Victim_Age_Range, to = "ASCII//TRANSLIT"),
+         Gender_ASCII = iconv(Gender, to = "ASCII//TRANSLIT"))
+
+# Summarize the dataset by Victim_Age_Range and Gender
+monetary_loss_by_age_data <- filtered_missing_data %>%
+  group_by(Victim_Age_Range_ASCII, Gender_ASCII) %>%
+  summarise(Total_Monetary_Loss = sum(Dollar_Loss_numeric, na.rm = TRUE),
+            Count = n(), .groups = "drop") %>%
+  filter(Total_Monetary_Loss > 0)
+
+# Reorder age group levels
+monetary_loss_by_age_data$Victim_Age_Range_ASCII <- factor(monetary_loss_by_age_data$Victim_Age_Range_ASCII, 
+                                                    levels = c("'1 - 9", "'10 - 19", "'20 - 29", 
+                                                               "'30 - 39", "'40 - 49", "'50 - 59", 
+                                                               "'60 - 69", "'70 - 79", "'80 - 89", "'90 - 99", "'100 +"))
+
+# Filter out NA values in age group
+monetary_loss_by_age_data <- monetary_loss_by_age_data %>% filter(!is.na(Victim_Age_Range_ASCII))
+
+# Define custom function to format monetary labels
+format_monetary <- function(x) {
+  ifelse(x >= 1e9, paste0(x / 1e9, " B CAD"),
+         ifelse(x >= 1e6, paste0(x / 1e6, " M CAD"),
+                paste0(x / 1e3, " K CAD")))
+}
+
+# ==========================================================================================================
+#
+#           BUBBLE CHART FOR MONETARY LOSS, AGE AND GENDER GRAPH
+#
+# ==========================================================================================================
+
+# Bubble chart with dark background
+monetary_loss_age_bubble_chart <- ggplot(monetary_loss_by_age_data, aes(x = Victim_Age_Range_ASCII, y = Gender_ASCII, size = Total_Monetary_Loss, fill = Count)) +
+  geom_point(shape = 21, color = "black", alpha = 0.7) +
+  scale_size_continuous(name = "Total Monetary Loss (Millions)", range = c(5, 30), 
+                        labels = function(x) format_monetary(x)) +
+  scale_fill_viridis_c(name = "Count") +
+  labs(title = "Monetary Loss by Age Group and Gender",
+       x = "Age Group",
+       y = "Gender") +
+  theme_minimal() +
+  theme( axis.title.x = element_text(margin = margin(t = 10), hjust = 0.5),  # Add margin between x-axis title and labels
+         axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+         axis.title = element_text(margin = margin(b = 10)),
+         plot.title = element_text(hjust = 0.5),
+         panel.grid.minor = element_blank(),
+         axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+         axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+         legend.title = element_text(margin = margin(b = 10)),  # Add margin to legend title
+         legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+         legend.position = "right"  # Show legend on the right
+  ) +
+  guides(size = guide_legend(override.aes = list(color = "black")))  # Change the color of the circles in the legend to white
+
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: CHOROPLETH MAP FOR FRAUD TYPES IN PROVINCES PLOT ONLY
+#
+# ==========================================================================================================
+
+# Read the shapefile for Canada
+url <- "https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/canada.geojson"
+canada_map <- st_read(url)
+
+# Aggregate fraud counts by province
+province_fraud_counts <- cleaned_data %>%
+  group_by(Province_State) %>%
+  summarise(fraud_count = n())
+
+# Merge the shapefile data with fraud counts
+merged_data_province_fraud_types <- left_join(canada_map, province_fraud_counts, by = c("name" = "Province_State"))
+
+# Replace NA values with 0
+merged_data_province_fraud_types$fraud_count[is.na(merged_data_province_fraud_types$fraud_count)] <- 0
+
+# Calculate centroids using st_centroid
+centroids <- st_centroid(merged_data_province_fraud_types)
+
+# Assign province names as labels
+centroids$label <- merged_data_province_fraud_types$name
+
+merged_data_province_fraud_types$fraud_count <- as.numeric(as.character(merged_data_province_fraud_types$fraud_count))
+
+# ==========================================================================================================
+#
+#           CHOROPLETH MAP FOR FRAUD TYPES IN PROVINCES GRAPH
+#
+# ==========================================================================================================
+
+# Plot the choropleth map with province labels using ggrepel for better label placement
+choropleth_map_province_fraud_types <- ggplot(data = merged_data_province_fraud_types) +
+  geom_sf(aes(fill = fraud_count), linewidth = 0, alpha = 0.7) + # Adjust alpha for transparency
+  geom_text_repel(data = centroids, aes(label = label, x = st_coordinates(centroids)[, "X"], y = st_coordinates(centroids)[, "Y"]), size = 4, direction = "both", max.overlaps = Inf) +  # Add province labels with label repulsion
+  scale_fill_distiller(trans = "reverse", palette = "Reds", name = "Fraud Count", breaks = pretty(merged_data_province_fraud_types$fraud_count, n = 5)) +  # Use custom color palette
+  labs(
+    title = "Fraud Incidents by Province in Canada",
+    caption = "Source: Fraud Detection Dataset",
+    x = "Longitude",  # Set x-axis label
+    y = "Latitude"    # Set y-axis label
+  ) +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    legend.background = element_rect(fill = "white", color = NA),
+    plot.title = element_text(
+      size = 15, hjust = 0.5, margin = margin(b = -0.1, t = 0.4)
+    ),
+    plot.caption = element_text(
+      size = 8, hjust = 1, margin = margin(b = 0.3, r = -99, t = 0.3)
+    ),
+    legend.position = "right",
+    panel.grid.minor = element_line(size = 0.1),  # Set color and size of minor grid lines
+    panel.grid.major = element_line(size = 0.1),   # Set color and size of minor grid lines
+    axis.title.x = element_text(margin = margin(t = 10)), # Add spacing above x-axis label
+    axis.title.y = element_text(margin = margin(r = 10))  # Add spacing to the right of y-axis label
+  )
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: FRAUD DISTRIBUTION BY PROVINCES & CATEGORIES PLOT ONLY
+#
+# ==========================================================================================================
+
+# Filter cleaned_data for rows where Complaint_Type is "Victim"
+filtered_victim_data <- cleaned_data %>%
+  filter(Complaint_Type == "Victim")
+
+# Summarize data by province, fraud type, and include Complaint_Type
+fraud_summary_by_province_type_complaint_included <- filtered_victim_data %>%
+  group_by(Province_State, Fraud_and_Cybercrime_Thematic_Categories, Complaint_Type) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+# Summarize data by province and fraud type
+fraud_summary_by_province_type_complaint_included <- fraud_summary_by_province_type_complaint_included %>%
+  group_by(Province_State, Fraud_and_Cybercrime_Thematic_Categories) %>%
+  summarise(Count = sum(Count), .groups = 'drop')
+
+
+# Define mapping of large fraud categories to subcategories
+fraud_mapping <- list(
+  "Financial Fraud" = c("Bank Investigator", "Credit Card", "False Billing", "Loan", "Unauthorized Charge", "Vendor Fraud", "Fraudulent Cheque"),
+  "Identity Theft" = c("Identity Fraud", "Personal Info"),
+  "Scams" = c("Extortion", "Foreign Money Offer", "Health", "Job", "Prize", "Psychics", "Pyramid", "Recovery Pitch", "Romance", "Service", "Telecom Fraud", "Timeshare"),
+  "Miscellaneous" = c("Charity / Donation", "Collection Agency", "Directory", "Incomplete", "Investments", "Merchandise", "Other", "Phishing", "Spoofing", "Survey", "Unknown"),
+  "Government Related" = c("GRANT", "Modem-Hijacking", "Office Supplies"),
+  "Legal Issues" = c("Spear Phishing")
+)
+
+# Create a new column for large fraud category
+fraud_summary_by_province_type_complaint_included <- fraud_summary_by_province_type_complaint_included %>%
+  mutate(Large_Category = case_when(
+    Fraud_and_Cybercrime_Thematic_Categories %in% unlist(fraud_mapping["Financial Fraud"]) ~ "Financial Fraud",
+    Fraud_and_Cybercrime_Thematic_Categories %in% unlist(fraud_mapping["Identity Theft"]) ~ "Identity Theft",
+    Fraud_and_Cybercrime_Thematic_Categories %in% unlist(fraud_mapping["Scams"]) ~ "Scams",
+    Fraud_and_Cybercrime_Thematic_Categories %in% unlist(fraud_mapping["Miscellaneous"]) ~ "Miscellaneous",
+    Fraud_and_Cybercrime_Thematic_Categories %in% unlist(fraud_mapping["Government Related"]) ~ "Government Related",
+    Fraud_and_Cybercrime_Thematic_Categories %in% unlist(fraud_mapping["Legal Issues"]) ~ "Legal Issues",
+    TRUE ~ "Other"
+  ))
+
+smaller_categories <- c( "Miscellaneous", "Government Related", "Legal Issues", "Other", "Scams")  # Fill in the smaller categories
+larger_categories <- c("Identity Theft")   # Fill in the larger categories
+
+# Define color for larger categories
+major_category_color <- "#407FB2"  # Choose a single color for major categories
+
+
+# Aggregate the data to get counts for each category
+agg_data_count_each_category <- fraud_summary_by_province_type_complaint_included %>%
+  group_by(Province_State, Large_Category) %>%
+  summarise(Count = sum(Count), .groups = "drop")
+
+
+# Calculate percentages within each province
+agg_data_count_each_category <- agg_data_count_each_category %>%
+  group_by(Province_State) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100)
+
+
+# Combine province name, fraud subgroup, and percentage into a single label
+agg_data_count_each_category$Label <- paste(
+  agg_data_count_each_category$Province_State,
+  agg_data_count_each_category$Large_Category,
+  sprintf("%.2f%%", agg_data_count_each_category$Percentage),
+  sep = " - "
+)
+
+# Assign colors to each category explicitly
+category_colors <- c(
+  "Identity Theft" = "#407FB2",  # Color for larger category
+  "Miscellaneous" = "#7EA2A8",
+  "Government Related" = "#8F63B6",
+  "Legal Issues" = "#C97933",
+  "Other" = "#A7665B",
+  "Scams" = "#4CA256"
+)
+
+# Ensure all categories are in the color list
+all_categories <- unique(c(larger_categories, smaller_categories))
+unused_colors <- setdiff(accessible_palette, category_colors)
+
+# Assign unused colors to any additional categories not already specified
+additional_categories <- setdiff(all_categories, names(category_colors))
+if (length(additional_categories) > length(unused_colors)) {
+  stop("Not enough unique colors for all categories")
+}
+category_colors[additional_categories] <- unused_colors[1:length(additional_categories)]
+
+
+# Create a vector to store the fill color for each subgroup
+fill_colors <- ifelse(agg_data_count_each_category$Large_Category %in% smaller_categories,
+                      sample(accessible_palette,
+                             length(agg_data_count_each_category[agg_data_count_each_category$Large_Category %in% smaller_categories,]),
+                             replace = TRUE),  # Sample colors for smaller categories with replacement
+                      major_category_color  # Color for larger categories
+                      )
+
+# ==========================================================================================================
+#
+#           FRAUD DISTRIBUTION BY PROVINCES & CATEGORIES GRAPH
+#
+# ==========================================================================================================
+
+fraud_distribution_by_province_treemap_plot <- ggplot(agg_data_count_each_category, aes(area = Count, fill = Large_Category, subgroup = Large_Category)) +
+  geom_treemap() +
+  geom_treemap_text(aes(label = Label), place = "centre", grow = FALSE, reflow = FALSE, color = "black") +
+  labs(title = "Fraud Distribution by Province and Category",
+       fill = "Large Category  ") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 10), hjust = 3),  # Add margin between x-axis title and labels
+    axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+    axis.title = element_text(margin = margin(b = 10)),
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    legend.title = element_text( margin = margin(b = 10)),  # Add margin to legend title
+    legend.spacing.x = unit(0.5, "lines"),  # Add spacing between legend items and title
+    legend.position = "right"  # Show legend on the right
+  ) +
+  scale_fill_manual(values = category_colors)  # Use predefined colors for each category
+
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: INDIVIDUAL SCAMS OVER TIME PLOT ONLY
+#
+# ==========================================================================================================
+
+# Ensure the Date_Received column in cleaned_data is in Date format
+cleaned_data <- cleaned_data %>%
+  mutate(Date_Received = as.Date(Date_Received))
+
+# Filter cleaned_data to include only 'Victims' and 'Attempt' complaint types
+filtered_scam_complaint_type_data <- cleaned_data %>%
+  filter(`Complaint_Type` %in% c("Victim", "Attempt"))
+
+# Summarize filtered_scam_complaint_type_data to check for any issues with counts or grouping
+summary_individual_scam_trend_over_time_data <- filtered_scam_complaint_type_data %>%
+  group_by(Date_Received, Complaint_Type) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+# Check for missing dates (completely absent or outside expected range)
+num_missing <- sum(is.na(filtered_scam_complaint_type_data$Date_Received))  # Count missing values (NA)
+
+# Assuming a minimum and maximum date for scam occurrences
+min_date <- as.Date("2020-01-01")  # Adjust these values as needed
+max_date <- as.Date("2024-05-27")  # Adjust these values as needed
+
+num_out_of_range <- sum(filtered_scam_complaint_type_data$Date_Received < min_date | 
+                          filtered_scam_complaint_type_data$Date_Received > max_date)
+
+# ==========================================================================================================
+#
+#           INDIVIDUAL SCAMS OVER TIME GRAPH
+#
+# ==========================================================================================================
+
+# Create the scatter plot with a line of best fit
+individual_scam_trend_over_time_scatter_plot_single_regression_line <- ggplot(summary_individual_scam_trend_over_time_data, aes(x = Date_Received, y = Count, color = Complaint_Type)) +
+  geom_point(size = 2, alpha = 0.6, position = position_jitter(width = 0.1)) +  # Add jitter
+  geom_smooth(formula = y ~ x, method = "glm", method.args = list(family = "poisson"),
+              se = FALSE, linetype = "solid", color = "black", show.legend = FALSE) +  # Line of best fit
+  labs(title = "Individual Scam Occurrences Over Time",
+       x = "Date",
+       y = "Count of Scams",
+       color = "Complaint Type") +
+  scale_color_manual(values = accessible_palette) +  # Assign colors to points
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 10), hjust = 0.5),  # Add margin between x-axis title and labels
+    axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+    axis.title = element_text(margin = margin(b = 10)),
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+    axis.text.x = element_text(size = 10, angle = 0, hjust = 1),
+    legend.title = element_text(margin = margin(b = 10)),  # Add margin to legend title
+    legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+    legend.position = "right"  # Show legend on the right
+  )
+
+
+
+# Create the scatter plot with multiple lines of best fit
+individual_scam_trend_over_time_scatter_plot_multiple_regression_line <- ggplot(summary_individual_scam_trend_over_time_data, aes(x = Date_Received, y = Count, color = Complaint_Type, linetype = Complaint_Type)) +
+  geom_point(size = 2, alpha = 0.6, position = position_jitter(width = 0.1)) +  # Add jitter
+  geom_smooth(formula = 'y ~ x', method = "glm", method.args = list(family = "poisson"),
+              se = FALSE, color = "black", show.legend = FALSE) +  # Lines of best fit
+  labs(title = "Individual Scam Occurrences Over Time",
+       x = "Date",
+       y = "Count of Scams",
+       color = "Complaint Type") +
+  scale_color_manual(values = accessible_palette) +  # Assign colors to points
+  scale_linetype_manual(values = c("solid", "solid")) + # Define linetypes for each Complaint_Type
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 10), hjust = 0.5),  # Add margin between x-axis title and labels
+    axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+    axis.title = element_text(margin = margin(b = 10)),
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+    axis.text.x = element_text(size = 10, angle = 0, hjust = 1),
+    legend.title = element_text(margin = margin(b = 10)),  # Add margin to legend title
+    legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+    legend.position = "right"  # Show legend on the right
+  )
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: MONTHS WHEN NO SCAM OCCURRED PLOT ONLY
+#
+# ==========================================================================================================
+
+# Ensure the Date_Received column is in Date format
+summary_individual_scam_trend_over_time_data <- summary_individual_scam_trend_over_time_data %>%
+  mutate(Date_Received = as.Date(Date_Received))
+
+# Filter for "Attempt" reports
+attempt_data <- summary_individual_scam_trend_over_time_data %>%
+  filter(Complaint_Type == "Attempt")
+
+# Get the range of dates in the dataset
+start_date <- min(summary_individual_scam_trend_over_time_data$Date_Received)
+end_date <- max(summary_individual_scam_trend_over_time_data$Date_Received)
+
+# Generate a sequence of all possible dates in the range
+all_dates <- seq.Date(start_date, end_date, by = "day")
+
+# Get the unique dates where "Attempt" reports were made
+attempt_dates <- unique(attempt_data$Date_Received)
+
+# Identify dates with no "Attempt" reports
+no_attempt_dates <- setdiff(all_dates, attempt_dates)
+
+# Convert the numeric dates back to date format (if they are not already)
+no_attempt_dates <- as.Date(no_attempt_dates, origin = "1970-01-01")
+
+missing_dates <- as.Date(no_attempt_dates)
+
+# Filter out duplicate dates and ensure we have only unique missing dates
+no_attempt_dates <- unique(no_attempt_dates)
+
+# Create a data frame for missing dates
+missing_dates_df <- data.frame(Date = as.Date(missing_dates))
+# print(missing_dates_df)
+
+# Count occurrences of each date
+date_counts <- missing_dates_df %>%
+  group_by(Date) %>%
+  summarise(count = n())  # Count the number of occurrences for each date
+
+# Aggregate data by month and year
+date_counts_monthly <- date_counts %>%
+  mutate(YearMonth = format(Date, "%Y-%m"),
+         Year = as.factor(format(Date, "%Y"))) %>%
+  group_by(YearMonth, Year) %>%
+  summarize(count = sum(count), .groups = 'drop') %>%
+  ungroup()
+
+# ==========================================================================================================
+#
+#           MONTHS WHEN NO SCAM OCCURRED GRAPH
+#
+# ==========================================================================================================
+
+no_incident_reported_bar_chart_monthly <- ggplot(date_counts_monthly, aes(x = YearMonth, y = count, fill = Year)) +
+  geom_bar(stat = "identity", width = 0.7) + # Use geom_bar for bar chart
+  scale_color_manual(values = accessible_palette) +  # Assign colors to points
+  labs(title = "Monthly Counts of Reports",
+       x = "Year",
+       y = "Count") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 10), hjust = 0.5),  # Add margin between x-axis title and labels
+    axis.title.y = element_text(margin = margin(r = 10)),  # Add margin between y-axis title and labels
+    axis.title = element_text(margin = margin(b = 10)),
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 10, hjust = 1),  # Adjust text size here
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    legend.title = element_text(margin = margin(b = 10)),  # Add margin to legend title
+    legend.spacing = unit(0.5, "lines"),  # Add spacing between legend items and title
+    legend.position = "right"  # Show legend on the right
+  )
+
+```
+
+<!-- CODE BLOCK: FOR ANALYTICAL ANALYSIS ONLY -->
+
+```{r, include = FALSE}
+
+# ==========================================================================================================
+#
+#           CODE BLOCK: FOR ANALYTICAL ANALYSIS ONLY
+#
+# ==========================================================================================================
+
+data <- read.csv(file = "C:/users/Fujitsu/Desktop/R-project/fraud_detection.csv", check.names = FALSE, header = TRUE, row.names = NULL)
+
+# Rename columns
+renamed_col <- data %>%
+  rename(
+    Number_ID = "Num\xe9ro d'identification / Number ID",
+    Date_Received = "Date Received / Date re\xe7ue",
+    Complaint_Received_Type = "Complaint Received Type",
+    Complaint_Received_Type_French= "Type de plainte re\xe7ue",
+    Country = "Country",
+    Pays = "Pays",
+    Province_State = "Province/State",
+    Province_State_French = "Province/\xc9tat",
+    Fraud_and_Cybercrime_Thematic_Categories = "Fraud and Cybercrime Thematic Categories",
+    Fraud_and_Cybercrime_Thematic_Categories_French = "Cat\xe9gories th\xe9matiques sur la fraude et la cybercriminalit\xe9",
+    Solicitation_Method = "Solicitation Method",
+    Solicitation_Method_French = "M\xe9thode de sollicitation",
+    Gender = "Gender",
+    Genre = "Genre",
+    Language_of_Correspondence = "Language of Correspondence",
+    Language_of_Correspondence_French = "Langue de correspondance",
+    Victim_Age_Range = "Victim Age Range / Tranche d'\xe2ge des victimes",
+    Complaint_Type = "Complaint Type",
+    Complaint_Type_French = "Type de plainte",
+    Number_of_Victims = "Number of Victims / Nombre de victimes",
+    Dollar_Loss = "Dollar Loss /pertes financi\xe8res"
+  )
+
+# Filter for entries containing "Canada" (case-insensitive)
+renamed_col <- renamed_col[grepl("Canada", renamed_col$Country, ignore.case = TRUE), ]
+
+# Remove French columns
+canada_entries_dataset <- renamed_col %>%
+  select(
+    -Complaint_Received_Type_French,
+    -Pays,
+    -Province_State_French,
+    -Fraud_and_Cybercrime_Thematic_Categories_French,
+    -Solicitation_Method_French,
+    -Genre,
+    -Language_of_Correspondence_French,
+    -Complaint_Type_French
+  )
+
+# Define the expected values for each column
+expected_values <- list(
+  Date_Received = "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+  Complaint_Received_Type = c("CAFC Website", "NCFRS", "Email", "Phone", "Mail", "In Person", "Intercepted", "Message"),
+  Province_State = c("Saskatchewan", "Quebec", "Ontario", "British Columbia", "Yukon", "Alberta", "Manitoba", "Prince Edward Island", 
+                     "Newfoundland And Labrador", "Nova Scotia", "New Brunswick", "North West Territories", "Nunavut"),
+  Fraud_and_Cybercrime_Thematic_Categories = c("Merchandise", "Identity Fraud", "Phishing", "Vendor Fraud", "Spear Phishing", "Extortion", 
+                                               "Emergency (Jail, Accident, Hospital, Help)", "Job", "Prize", "Personal Info", "Counterfeit Merchandise", 
+                                               "Service", "GRANT", "Collection Agency", "Bank Investigator", "Investments", "Romance", "Spoofing", "Loan", 
+                                               "Unauthorized Charge", "Charity / Donation", "Foreign Money Offer", "Office Supplies", "Health", "Timeshare", 
+                                               "Psychics", "False Billing", "Vacation", "Recovery Pitch", "Survey", "Fraudulent Cheque", "Directory", 
+                                               "Pyramid", "Modem-Hijacking", "Telecom Fraud", "Credit Card"),
+  Solicitation_Method = c("Email", "Text message", "Direct call", "Internet-social network", "Internet", "Mail", "Door to door/in person", 
+                          "Print", "Video Call", "Television", "Radio"),
+  Gender = c("Male", "Female"),
+  Language_of_Correspondence = c("English", "French"),
+  Victim_Age_Range = c("'1 - 9", "'10 - 19", "'20 - 29", "'30 - 39", "'40 - 49", "'50 - 59", "'60 - 69", "'70 - 79", "'80 - 89", "'90 - 99", "'100 +", "'Business / Entreprise"),
+  Complaint_Type = c("Attempt", "Victim"),
+  Dollar_Loss = "^\\$\\d+\\.\\d{2}$",
+  Country = "Canada",
+  Number_of_Victims = c(0, 1)
+)
+
+# Create a function to filter and separate data based on expected values
+filter_and_separate <- function(data, expected_values) {
+  cleaned_data <- data
+  unwanted_data <- data.frame(Column = character(), Unwanted_Values_Count = integer(), stringsAsFactors = FALSE)
+  
+  for (col in names(expected_values)) {
+    expected <- expected_values[[col]]
+    
+    if (is.character(expected) && length(expected) == 1) {
+      # For regex patterns
+      valid_rows <- grepl(expected, cleaned_data[[col]], ignore.case = TRUE)
+    } else {
+      # For specific values
+      valid_rows <- cleaned_data[[col]] %in% expected
+    }
+    
+    # Handle NAs separately
+    valid_rows[is.na(valid_rows)] <- FALSE
+    
+    # Collect unwanted entries
+    unwanted_entries <- cleaned_data[!valid_rows, col, drop = FALSE]
+    
+    # Count unwanted values
+    unwanted_values_count <- nrow(unwanted_entries)
+    
+    # Append counts to unwanted_data only if count is greater than 0
+    if (unwanted_values_count > 0) {
+      unwanted_data <- rbind(unwanted_data, data.frame(Column = col, Unwanted_Values_Count = unwanted_values_count))
+    }
+    
+    # Filter the cleaned data
+    cleaned_data <- cleaned_data[valid_rows, ]
+  }
+  
+  list(cleaned_data = cleaned_data, unwanted_data = unwanted_data)
+}
+
+# Apply the function to the dataset
+filtered_data <- filter_and_separate(canada_entries_dataset, expected_values)
+
+# Modify the cleaned data
+cleaned_data <- filtered_data$cleaned_data
+
+# Format Dollar_Loss column
+cleaned_data$Dollar_Loss <- as.numeric(sub("\\$", "", cleaned_data$Dollar_Loss))
+
+# Rename the Dollar_Loss column
+names(cleaned_data)[names(cleaned_data) == "Dollar_Loss"] <- "Dollar_Loss_(CAD)"
+
+# write.xlsx(filtered_data$cleaned_data, file = "C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")  # Change to .xlsx for Excel compatibility
+# write.xlsx(filtered_data$unwanted_data, file = "C:/users/Fujitsu/Desktop/R-project/unwanted_data.xlsx") # Change to .xlsx for Excel compatibility
+# 
+# # Set Dollar_Loss_(CAD) column as text format
+# write.xlsx(cleaned_data, file = "C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx", sheet.name = "Cleaned_Data", colNames = TRUE, rowNames = TRUE) # Change to .xlsx for Excel compatibility
+
+
+
+
+# ==========================================================================================================
+#
+#           chi-square test to assess the association between gender and complaint types
+#
+# ==========================================================================================================
+
+chi_square_gender_complaint <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+
+# Create a contingency table
+cont_table <- table(chi_square_gender_complaint$Gender, chi_square_gender_complaint$Complaint_Type)
+
+# Perform chi-square test
+chi_sq_result <- chisq.test(cont_table)
+
+# ==========================================================================================================
+#
+#             perform regression analysis to model the relationship between gender and the
+#                                 frequency of specific scam types.
+#
+# ==========================================================================================================
+
+regression_gender_scam_types <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+
+# Rename any empty column names
+names(regression_gender_scam_types)[names(regression_gender_scam_types) == ""] <- "Unnamed"
+
+# Convert to factors
+regression_gender_scam_types$Gender <- as.factor(regression_gender_scam_types$Gender)
+regression_gender_scam_types$Fraud_and_Cybercrime_Thematic_Categories <- as.factor(regression_gender_scam_types$Fraud_and_Cybercrime_Thematic_Categories)
+
+# Remove rows with missing values in these columns
+regression_gender_scam_types <- regression_gender_scam_types %>%
+  filter(!is.na(Gender) & !is.na(Fraud_and_Cybercrime_Thematic_Categories))
+
+# Check levels of Fraud_and_Cybercrime_Thematic_Categories
+levels(regression_gender_scam_types$Gender)
+levels(regression_gender_scam_types$Fraud_and_Cybercrime_Thematic_Categories)
+
+# Perform multinomial logistic regression
+multinom_model <- multinom(Fraud_and_Cybercrime_Thematic_Categories ~ Gender, data = regression_gender_scam_types)
+
+# Display summary of the model
+summary(multinom_model)
+
+# Compute z-values
+z_values <- summary(multinom_model)$coefficients / summary(multinom_model)$standard.errors
+
+# Compute p-values
+p_values <- (1 - pnorm(abs(z_values), 0, 1)) * 2
+
+# Combine coefficients, z-values, and p-values into a data frame
+coef_summary <- data.frame(
+  Coefficients = summary(multinom_model)$coefficients,
+  Std_Errors = summary(multinom_model)$standard.errors,
+  z_values = z_values,
+  p_values = p_values
+)
+
+# Extract coefficients from the summary and create a data frame
+coef_summary <- summary(multinom_model)$coefficients
+coef_summary <- as.data.frame(coef_summary)
+coef_summary$scam_type <- rownames(coef_summary)
+
+# Melt the data frame for easy plotting
+coef_summary_melted <- coef_summary %>%
+  pivot_longer(cols = c(-scam_type), names_to = "gender", values_to = "coef")
+
+# Plot
+ggplot(coef_summary_melted, aes(x = coef, y = scam_type, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Coefficients of Gender in Regression Analysis",
+       x = "Coefficient",
+       y = "Scam Type",
+       fill = "Gender") +  # Legend title
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=1)) +
+  scale_fill_manual(values = accessible_palette,  # Define colors for the legend
+                    labels = c("Female", "Male"))  # Define legend labels
+
+# Prepare data for plotting
+plot_data <- data.frame(
+  Scam_Type = rownames(summary(multinom_model)$coefficients),
+  Coefficient_GenderMale = summary(multinom_model)$coefficients[, "GenderMale"],
+  p_value = p_values[, "GenderMale"]
+)
+
+# Add a column to indicate significance (p-value < 0.05)
+plot_data$Significance <- plot_data$p_value < 0.05
+
+# Create plot for GenderMale
+plot_male <- ggplot(plot_data, aes(x = Coefficient_GenderMale, y = reorder(Scam_Type, Coefficient_GenderMale), fill = Significance)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = accessible_palette, labels = c("Not Significant", "Significant")) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.8) +
+  labs(
+    title = "Impact of Gender (Male) on Likelihood of Different Scam Types",
+    x = "Coefficient (GenderMale)",
+    y = "Scam Type",
+    fill = "Significant (p < 0.05)"
+  ) +
+  theme_minimal()
+
+# Invert the coefficients for females
+plot_data$Coefficient_GenderFemale <- -plot_data$Coefficient_GenderMale
+
+# Create plot for GenderFemale
+plot_female <- ggplot(plot_data, aes(x = Coefficient_GenderFemale, y = reorder(Scam_Type, Coefficient_GenderFemale), fill = Significance)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = accessible_palette, labels = c("Not Significant", "Significant")) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.8) +
+  labs(
+    title = "Impact of Gender (Female) on Likelihood of Different Scam Types",
+    x = "Coefficient (GenderFemale)",
+    y = "Scam Type",
+    fill = "Significant (p < 0.05)"
+  ) +
+  theme_minimal()
+
+# ==========================================================================================================
+#
+#                   comparing the frequencies of different fraud types across age groups
+#                                           (ANOVA test)
+#
+# ==========================================================================================================
+
+anova_test_fraud_type_and_age <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+
+# Create a subset of the data with relevant columns
+subset_data_for_h3 <- anova_test_fraud_type_and_age[, c("Victim_Age_Range", "Fraud_and_Cybercrime_Thematic_Categories")]
+
+# Convert both columns to factor variables
+subset_data_for_h3$Fraud_and_Cybercrime_Thematic_Categories <- as.factor(subset_data_for_h3$Fraud_and_Cybercrime_Thematic_Categories)
+subset_data_for_h3$Victim_Age_Range <- as.factor(subset_data_for_h3$Victim_Age_Range)
+
+# Create a contingency table of counts
+contingency_table <- table(subset_data_for_h3$Victim_Age_Range, subset_data_for_h3$Fraud_and_Cybercrime_Thematic_Categories)
+
+# Convert contingency table to a data frame
+contingency_df <- as.data.frame(as.table(contingency_table))
+
+# Rename columns for clarity
+names(contingency_df) <- c("Victim_Age_Range", "Fraud_Type", "Count")
+
+# Perform ANOVA
+anova_result_h3 <- aov(Count ~ Victim_Age_Range + Fraud_Type, data = contingency_df)
+
+# View ANOVA results
+summary(anova_result_h3)
+
+# ==========================================================================================================
+#
+#                   analyzing the relationship between age, gender, and Dollar_Loss.
+#                                           (Linear Regression)
+#
+# ==========================================================================================================
+
+relation_age_gender_dollar_loss <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+
+
+# Subset the data to include relevant columns
+subset_data_for_h4 <- relation_age_gender_dollar_loss[, c("Victim_Age_Range", "Dollar_Loss_(CAD)", "Gender")]
+
+# Explore the data
+summary(subset_data_for_h4)
+
+# Check for any missing values
+sum(is.na(subset_data_for_h4))
+
+# Perform linear regression or ANCOVA
+# Linear regression model including age, gender, and their interaction
+lm_model <- lm(`Dollar_Loss_(CAD)` ~ Victim_Age_Range * Gender, data = subset_data_for_h4)
+summary(lm_model)
+
+# Scatter plot of Dollar_Loss vs. Victim_Age_Range colored by Gender
+ggplot(subset_data_for_h4, aes(x = Victim_Age_Range, y = `Dollar_Loss_(CAD)`, color = Gender)) +
+  geom_point(alpha = 0.6) +
+  scale_color_manual(values = accessible_palette) +  # Apply the color palette
+  labs(x = "Victim Age Range", y = "Dollar Loss", color = "Gender") +
+  ggtitle("Dollar Loss vs. Victim Age Range by Gender") +
+  theme(plot.title = element_text(hjust = 0.5))  # Center the title
+
+# Violin plot of Dollar Loss by Gender
+relationship_age_gender_dollar_loss <- ggplot(subset_data_for_h4, aes(x = Gender, y = `Dollar_Loss_(CAD)`, fill = Gender)) +
+  geom_violin(trim = FALSE) +
+  geom_boxplot(width = 0.1, fill = "white", color = "black") +  # Overlay boxplot for clearer visualization of median and quartiles
+  scale_fill_manual(values = accessible_palette) +  # Apply the color palette
+  labs(x = "Gender", y = "Dollar Loss", fill = "Gender") +
+  ggtitle("Distribution of Dollar Loss by Gender") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))  # Center the title
+
+# ==========================================================================================================
+#
+#                          comparing the number of complaints across provinces
+#                                           (ANOVA test)
+#
+# ==========================================================================================================
+
+no_of_complaint_provinces <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+
+no_of_complaint_provinces_h5 <- no_of_complaint_provinces %>%
+  select(Province_State, Fraud_and_Cybercrime_Thematic_Categories, Number_of_Victims) %>%
+  filter(!is.na(Province_State), !is.na(Number_of_Victims))
+
+# Perform ANOVA
+anova_result_h5 <- aov(Number_of_Victims ~ Province_State, data = no_of_complaint_provinces_h5)
+
+# Check the ANOVA result
+summary(anova_result_h5)
+
+# Save the summary of ANOVA results
+anova_summary_h5 <- summary(anova_result_h5)
+
+# Extract relevant information
+Df_h5 <- anova_summary_h5[[1]]$Df
+Sum_Sq_h5 <- anova_summary_h5[[1]]$`Sum Sq`
+Mean_Sq_h5 <- anova_summary_h5[[1]]$`Mean Sq`
+F_value_h5 <- anova_summary_h5[[1]]$`F value`
+Pr_F_h5 <- anova_summary_h5[[1]]$`Pr(>F)`
+
+# ==========================================================================================================
+#
+#   exploring factors influencing the likelihood of a specific scam type occurring in a particular province
+#                                           (ANOVA test)
+#
+# ==========================================================================================================
+
+specific_scam_in_provinces <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+
+# Filter out missing values and subset the necessary columns
+specific_scam_in_provinces_h6 <- specific_scam_in_provinces %>%
+  select(Province_State, Fraud_and_Cybercrime_Thematic_Categories, Number_of_Victims) %>%
+  filter(!is.na(Province_State), !is.na(Fraud_and_Cybercrime_Thematic_Categories), !is.na(Number_of_Victims))
+
+# Get unique categories of fraud
+unique_categories <- unique(specific_scam_in_provinces_h6$Fraud_and_Cybercrime_Thematic_Categories)
+
+# Initialize a list to store the model coefficients for each category
+model_coefficients <- list()
+
+# Initialize a list to store the logistic regression models for each category
+logit_models <- list()
+
+# Iterate through each category
+for (category in unique_categories) {
+  # Create a subset of data for the current category
+  category_subset <- subset(specific_scam_in_provinces_h6, Fraud_and_Cybercrime_Thematic_Categories == category)
+  
+  # Check if there are sufficient observations after filtering
+  if (nrow(category_subset) > 0) {
+    # Create a binary variable indicating the chosen category
+    category_subset$binary_category <- ifelse(category_subset$Fraud_and_Cybercrime_Thematic_Categories == category, 1, 0)
+    
+    # Fit logistic regression model
+    logit_model <- glm(binary_category ~ Number_of_Victims, 
+                       data = category_subset, 
+                       family = binomial)
+    
+    # Store the model coefficients for the current category
+    model_coefficients[[category]] <- coef(logit_model)
+    
+    # Print the model coefficients
+    cat("Category:", category, "\n")
+    print(coef(logit_model))
+  } else {
+    # Print a message if there are no observations after filtering
+    cat("No observations for category:", category, "\n")
+  }
+}
+
+
+
+
+# Calculate covariance matrices for each model
+model_covariances <- lapply(logit_models, function(model) {
+  if (!is.null(model)) {
+    return(vcov(model))
+  } else {
+    return(NULL)
+  }
+})
+
+# Create a dataframe to store coefficients, standard errors, and categories
+coefs_df <- data.frame(Category = unique_categories,
+                       Intercept = rep(NA, length(unique_categories)),
+                       Number_of_Victims = rep(NA, length(unique_categories)),
+                       se = rep(NA, length(unique_categories)))
+
+# Fill in coefficients and standard errors for each category
+for (i in 1:length(unique_categories)) {
+  category <- unique_categories[i]
+  if (category %in% names(model_coefficients)) {
+    coefs_df[i, c("Intercept", "Number_of_Victims")] <- model_coefficients[[category]]
+    # Calculate standard error for Number_of_Victims coefficient
+    if (!is.null(model_covariances[[category]])) {
+      coefs_df[i, "se"] <- sqrt(diag(model_covariances[[category]]))[2]  
+    }
+  }
+}
+
+# Plot the coefficients with error bars
+
+logistic_regression_model_victim_fraud_categories <- ggplot(coefs_df, aes(x = Category, y = Number_of_Victims)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Number_of_Victims - 1.96 * se, 
+                    ymax = Number_of_Victims + 1.96 * se), 
+                width = 0.2) +
+  scale_color_manual(values = accessible_palette) +  # Apply the color palette
+  theme(plot.title = element_text(hjust = 0.5)) + # Center the title
+  labs(title = "Relationship between Number of Victims and Outcome by Fraud Category",
+       x = "Fraud Category",
+       y = "Estimated Coefficient for Number of Victims") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  coord_flip()
+
+# ==========================================================================================================
+#
+#   decomposing the time series data of Number_of_Victims into trend, seasonal, and cyclical components
+#                                 (Time-Series Decomposition)
+#
+# ==========================================================================================================
+
+no_victims_trends_seasonal_cyclical <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+
+# Ensure Date_Received is in Date format
+no_victims_trends_seasonal_cyclical$Date_Received <- as.Date(no_victims_trends_seasonal_cyclical$Date_Received)
+
+# Extract month and year from the Date_Received column
+no_victims_trends_seasonal_cyclical$Month <- format(no_victims_trends_seasonal_cyclical$Date_Received, "%m")
+no_victims_trends_seasonal_cyclical$Year <- format(no_victims_trends_seasonal_cyclical$Date_Received, "%Y")
+
+# Rename the first column to "Index"
+names(no_victims_trends_seasonal_cyclical)[1] <- "Index"
+
+# Group by month and year, calculate the total number of complaints for each month
+monthly_complaints_h8 <- no_victims_trends_seasonal_cyclical %>%
+  group_by(Month, Year) %>%
+  summarise(Total_Complaints = n())
+
+# Group by month, calculate the average number of complaints for each month across years (for trend line)
+monthly_avg_complaints_h8 <- monthly_complaints_h8 %>%
+  group_by(Month) %>%
+  summarise(Avg_Complaints = mean(Total_Complaints))
+
+# Plot the box plot
+time_series_decomposition_victim_trend <- ggplot(monthly_complaints_h8, aes(x = Month, y = Total_Complaints, fill = Month)) +
+  geom_boxplot() +
+  geom_point(data = monthly_avg_complaints_h8, aes(x = Month, y = Avg_Complaints), color = "black", size = 1) +  # Plot trend points
+  geom_line(data = monthly_avg_complaints_h8, aes(x = Month, y = Avg_Complaints), color = "black", group = 1) +  # Connect trend points with a line
+  labs(x = "Month", y = "Number of Complaints", title = "Distribution of Complaints by Month") +
+  scale_fill_manual(values = accessible_palette) +  # Apply the color palette
+  theme(axis.text.x = element_text(angle = 0, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5)) + # Center the title
+  theme(legend.position = "none")
+
+
+
+
+```
+
+# Introduction {-}
+
+In today’s digital age, fraud has become a pervasive risk, infiltrating various aspects of daily life. The fraud landscape is vast and growing, so understanding the extent and impact of this fraudulent activity on individuals and the wider economy is important. This Notebook explores the findings of a study by Global Fraud Alliance (GASA) and Feedzai^[@Feedzai2024].
+
+## Research Objectives {-}
+
+Through this research, we aim to:
+
+1. **Demographic Analysis**: Understand the demographic distribution of fraud victims, including age, sex, and education.
+2. **Frequency and Trends**: Examine the frequency with which Canadians experience fraud and identify any notable trends over the past year.
+3. **Scam Channels**: Identify the main channels used for scams, such as phone, email, and social media platforms.
+4. **Financial and Emotional Impact**: Look at the financial loss on the victims and the emotional damage caused by this fraud.
+5. **Reporting and Government Response**: Examine the reporting behavior of fraud victims and their satisfaction with government efforts to combat fraud.
+6. **Preventive Measures**: Highlight the methods individuals use to avoid fraud and discuss their effectiveness.
+
+
+# Current Literature {-}
+
+**Fraud and methods of dissemination**\
+A growing body of literature highlights the alarming prevalence of fraud in Canada. According to a report by the Canadian Anti-Fraud Center (CAFC), Canadians reported more than 68,000 cases of fraud in 2023 alone with financial losses in excess of 531 Million CAD [@GASA2023].
+
+
+**Mental and Emotional Influences**\
+The psychological and emotional toll of cheating is significant and often overlooked. Research has shown that victims of fraud experience a range of negative emotions including shame, guilt and anxiety by [@button2014not]. Survey found that 47% of fraud victims in Canada reported severe emotional impact, and that these non-financial behaviors need to be addressed with support systems [@Feedzai2024].
+
+**Economic Impact**\
+The economic losses caused by the fraud are enormous. An analysis estimated an average loss of 2,406 CAD per person, representing a loss of 13 Billion CAD per year or 0.5% of Canada’s GDP [@Feedzai2024]. The analysis, alongside various studies [@cross2019online] show the enormous economic burden of personal and economic fraud.
+
+**Reporting & Regulation**\
+Despite the high level of fraud, the number of reports remains low. Some examinations found that 69% of fraud victims do not report their experiences to law enforcement, often due to uncertainty of where to report, complex procedures and fear of repercussions. This underreporting complicates efforts to quantify and combat fraud [@Feedzai2024]. A Study emphasizes the importance of systematic reporting [@parti2023if].
+
+# Data Exploration {-}
+
+## Data Source {-}
+
+Dataset has been sourced from the Canadian Anti-Fraud Center's Fraud Reporting System database^[@police_canadian_nodate]. Data was gathered by Canadian Anti-Fraud Center's through their Fraud Reporting System and primarily from public submission. The accuracy of the data depends on various factors i.e. completeness, reliability of the information provided by the user while submitting the information. 
+
+Here are the definition and description of abbreviation used in the dataset
+
+| Variables                                | Definition |
+|:-----------------------|:--------------------------------------|
+| Date_Received                            | When the complaint was reported |
+| Complaint_Received_Type                  | A report received through the CAFC’s Online Reporting System |
+| Province_State                           | The province or territory where the scam occurred |
+| Fraud_and_Cybercrime_Thematic_Categories | The type of fraud reported by the victim (selected from a drop-down list or described during a telephone report to a CAFC intake analyst) |
+| Solicitation_Method                      | The initial method of contact between the fraudster and victim |
+| Language_of_Correspondence               | The language used during the fraud |
+| Complaint_Type                           | Type of complaint received by CAFC (e.g., Email, Phone) |
+| Number_of_Victims                        | Total number of victims associated with the reported instance(s) of fraud |
+| Dollar_Loss                              | Total amount of money lost due to the instance(s) of fraud |
+
+
+## Data Preparation {-}
+
+To prepare data for for analysis, several measures were undertaken. Following steps had been taken for data cleansing:
+
+* Renamed all columns for improved readability, addressing columns that were not encoded in UTF-8
+* Removed redundant columns i.e. columns contains French language translation
+* Retained only columns containing values relevant for analysis
+
+Here is the list of all columns including expected values format
+
+```{r results="show"}
+expected_values_in_dataset <- list(
+  Date_Received = "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+  Complaint_Received_Type = c("CAFC Website", "NCFRS", "Email", "Phone", "Mail", "In Person", "Intercepted", "Message"),
+  Province_State = c("Saskatchewan", "Quebec", "Ontario", "British Columbia", "Yukon", "Alberta", "Manitoba", "Prince Edward Island", 
+                     "Newfoundland And Labrador", "Nova Scotia", "New Brunswick", "North West Territories", "Nunavut"),
+  Fraud_and_Cybercrime_Thematic_Categories = c("Merchandise", "Identity Fraud", "Phishing", "Vendor Fraud", "Spear Phishing", "Extortion", 
+                                               "Emergency (Jail, Accident, Hospital, Help)", "Job", "Prize", "Personal Info", "Counterfeit Merchandise", 
+                                               "Service", "GRANT", "Collection Agency", "Bank Investigator", "Investments", "Romance", "Spoofing", "Loan", 
+                                               "Unauthorized Charge", "Charity / Donation", "Foreign Money Offer", "Office Supplies", "Health", "Timeshare", 
+                                               "Psychics", "False Billing", "Vacation", "Recovery Pitch", "Survey", "Fraudulent Cheque", "Directory", 
+                                               "Pyramid", "Modem-Hijacking", "Telecom Fraud", "Credit Card"),
+  Solicitation_Method = c("Email", "Text message", "Direct call", "Internet-social network", "Internet", "Mail", "Door to door/in person", 
+                          "Print", "Video Call", "Television", "Radio"),
+  Gender = c("Male", "Female"),
+  Language_of_Correspondence = c("English", "French"),
+  Victim_Age_Range = c("'1 - 9", "'10 - 19", "'20 - 29", "'30 - 39", "'40 - 49", "'50 - 59", "'60 - 69", "'70 - 79", "'80 - 89", "'90 - 99", "'100 +", "'Business / Entreprise"),
+  Complaint_Type = c("Attempt", "Victim"),
+  Dollar_Loss = "^\\$\\d+\\.\\d{2}$",
+  Country = "Canada",
+  Number_of_Victims = c(0, 1)
+)
+
+print(expected_values_in_dataset)
+
+```
+
+```{r results='asis'}
+data_clean_notebook <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+```
+
+Finally, here are our final dataset with all expected values and without any missing data. In the final dataset we have `r format(nrow(data_clean_notebook), big.mark = ",")` number of rows and `r ncol(data_clean_notebook)` number of columns 
+
+```{r results='asis'}
+paged_table(data_clean_notebook, options = list(cols.print = 15))
+cat("<div style='text-align:center; color: grey;font-style: italic;'>Tab 1: Data table</div>")
+```
+
+It is noticeable that there are numerous fields in which there are no values. This is illustrated in the following table:
+
+```{r, results = "asis"}
+data_unclean_notebook <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/unwanted_data.xlsx")
+paged_table(data_unclean_notebook, options = list(cols.print = 15))
+cat("<div style='text-align:center; color: grey;font-style: italic;'>Tab 2: NA Counts</div>")
+```
+
+# Results {-}
+
+## Gender-Based Analysis {-}
+
+### Hypotheses {-}
+
+-   H1: There is a significant difference in the distribution of fraud and cybercrime complaints based on gender.
+-   H2: Certain types of scams are more prevalent among specific genders.
+
+### Visual Representation: {.tabset .tabset-fade .tabset-pills -}
+
+#### Gender Distribution of Affected Individuals {-}
+
+```{r results='asis', fig.cap='Gender distribution of affected individuals'}
+print(gender_bar_chart)
+```
+
+#### Most Occurred Scams by Categories {-}
+
+```{r results='asis', fig.cap='Relationship between Gender & Most Occurred Scams/Fraud by Categories'}
+print(gender_most_fraud_category_by_gender_plot)
+```
+
+#### Least Occurred Scams by Categories {-}
+
+```{r results='asis', fig.cap='Relationship between Gender & Least Occurred Scams/Fraud by Categories'}
+print(gender_least_fraud_category_by_gender_plot)
+```
+
+### Analytical Analysis {-}
+
+* X-squared Value (21.9): This is the test statistic for the chi-square test. A higher value indicates a stronger association between the variables.
+* Degrees of Freedom (1): This indicates the number of independent comparisons in the chi-square test.
+* p-value (2.88e-06): This is the probability of observing the test results under the null hypothesis (no association between the variables). A p-value less than 0.05 typically indicates statistical significance.
+
+```{r results='show'}
+# Degrees of freedom
+df <- chi_sq_result$parameter
+
+# X-squared value
+X_squared <- chi_sq_result$statistic
+
+# p-value
+p_value <- chi_sq_result$p.value
+```
+
+### Analytical Analysis Results: {.tabset .tabset-fade .tabset-pills -}
+
+#### Chi Square Result {-}
+<div class="table-container">
+  | Variables                  | Values                                              |
+  |:---------------------------|:----------------------------------------------------:|
+  | Degrees of freedom (df)    | `r df`                                              |
+  | X-squared                  | `r format(X_squared, scientific = TRUE, digits = 3)`|
+  | p-value                    | `r format(p_value, scientific = TRUE, digits = 3)`  |
+
+  <div class="caption">Tab 3: Results of Chi-Square Test</div>
+</div>
+
+#### Regression Analysis for Male {-}
+```{r, results='asis', fig.cap='Regression Analysis for Male'}
+print(plot_male)
+```
+
+#### Regression Analysis for Female {-}
+```{r, results='asis', fig.cap='Regression Analysis for Female'}
+print(plot_female)
+```
+
+## Age-Based Analysis {-}
+
+### Hypotheses {-}
+
+-   H3: Different age groups experience varying types and frequencies of fraud and cybercrime complaints.
+-   H4: The monetary loss due to fraud and cybercrime varies significantly with age and gender.
+
+### Visual Representation: {.tabset .tabset-fade .tabset-pills -}
+
+#### Victim by Age and Complaint Type {-}
+
+```{r results='asis', fig.cap='Victim by Age and Complaint Type'}
+print(victim_age_complaint_type_stacked_bar_plot)
+```
+
+#### Monetary Loss by Age and Gender {-}
+
+```{r results='asis', fig.cap='Monetary Loss by Age and Gender'}
+print(monetary_loss_age_bubble_chart)
+```
+
+### Analytical Analysis {-}
+
+### Analytical Analysis Results: {.tabset .tabset-fade .tabset-pills -}
+
+#### Frequencies of different Fraud Types Across Age Groups - ANOVA test {-}
+
+* Victim Age Range:
+  * The p-value is 1.83e-15, which is significantly less than the common significance level of 0.05.
+  * This indicates that there are statistically significant differences in financial losses across different age ranges of victims.
+* Fraud Type:
+  * The p-value is 1.46e-39, which is also significantly less than 0.05.
+  * This indicates that there are statistically significant differences in financial losses across different types of fraud.
+* Overall:
+- Both Victim_Age_Range and Fraud_Type are significant predictors of financial loss.
+- This suggests that age and the type of fraud are important factors influencing the amount of financial loss experienced by victims.
+- The significant F values and very low p-values imply that variations in financial losses are significantly influenced by the victim's age range and the type of fraud they encountered. These findings can guide targeted measures and policies to address specific groups and types of fraud more effectively.
+
+```{r results='asis'}
+# Save the summary of ANOVA results
+anova_summary <- summary(anova_result_h3)
+
+# Extract relevant information
+Df <- anova_summary[[1]]$Df
+Sum_Sq <- anova_summary[[1]]$`Sum Sq`
+Mean_Sq <- anova_summary[[1]]$`Mean Sq`
+F_value <- anova_summary[[1]]$`F value`
+Pr_F <- anova_summary[[1]]$`Pr(>F)`
+```
+
+<div class="table-container">
+  | Variable          | Df        | Sum Sq        | Mean Sq        | F value        | Pr(>F)                                             |
+  |:------------------|:----------|:--------------|:---------------|:---------------|:---------------------------------------------------|
+  | Victim_Age_Range  | `r Df[1]` | `r format(Sum_Sq[1], scientific = TRUE, digits = 3)` | `r format(Mean_Sq[1], scientific = TRUE, digits = 3)` | `r format(F_value[1], scientific = TRUE, digits = 3)` | `r format(Pr_F[1], scientific = TRUE, digits = 3)` |
+  | Fraud_Type        | `r Df[2]` | `r format(Sum_Sq[2], scientific = TRUE, digits = 3)` | `r format(Mean_Sq[2], scientific = TRUE, digits = 3)` | `r format(F_value[2], scientific = TRUE, digits = 3)` | `r format(Pr_F[2], scientific = TRUE, digits = 3)` |
+  | Residuals         | `r Df[3]` | `r format(Sum_Sq[3], scientific = TRUE, digits = 3)` | `r format(Mean_Sq[3], scientific = TRUE, digits = 3)` |                |                                                    |
+  <div class="caption">Tab 4: Results of ANOVA Test</div>
+</div>
+
+#### Relationship between Age, Gender, and Dollar_Loss {-}
+
+* Victim_Age_Range:
+  * F value: High FA indicates significant differences in DollarLoss across age ranges.
+  * p-value (pA): If pA < 0.05, age range significantly affects DollarLoss.
+* Gender:
+  * F value: High FB indicates significant differences in DollarLoss between genders.
+  * p-value (pB): If pB < 0.05, gender significantly affects DollarLoss.
+* Interaction (Victim_Age_Range):
+  * F value: High FAB indicates a significant interaction effect between age and gender on DollarLoss.
+  * p-value (pAB): If pAB < 0.05, the interaction significantly affects DollarLoss.
+* Interpretation:
+- Age Range: Significant (pA < 0.05). Different age groups experience different levels of DollarLoss.
+- Gender: Significant (pB < 0.05). Financial losses vary significantly between male and female victims.
+- Interaction: Significant (pAB < 0.05). The effect of age on DollarLoss varies depending on gender.
+
+```{r results='asis', fig.cap='Analyzing the Relationship between Age, Gender, and Dollar Loss'}
+print(relationship_age_gender_dollar_loss)
+```
+
+The analysis indicates that both age and gender significantly influence financial losses due to fraud. Furthermore, the interaction between age and gender also plays a significant role. These findings highlight the need for targeted strategies to address vulnerabilities specific to different age and gender groups in combating fraud and cybercrime.
+
+## Regional Analysis {-}
+
+### Hypotheses {-}
+
+-   H5: The frequency of fraud and cybercrime complaints varies significantly across different provinces in Canada.
+-   H6: Certain types of fraud are more prevalent in specific provinces.
+
+### Visual Representation: {.tabset .tabset-fade .tabset-pills -}
+
+#### Fraud Incidents by Provinces in Canada {-}
+
+```{r results='asis', fig.cap='Fraud Incidents by Provinces in Canada'}
+print(choropleth_map_province_fraud_types)
+```
+
+#### Fraud Distribution by Province and Category {-}
+
+```{r results='asis', fig.cap='Fraud distribution by Province and Category'}
+print(fraud_distribution_by_province_treemap_plot)
+```
+
+### Analytical Analysis {-}
+
+* Intercept: The log odds of reporting a scam when all predictors are at the reference level.
+* Victim_Age_Range: A positive coefficient (0.256) indicates that with an increase in age range, the log odds of reporting a scam increase.
+* Gender Male: A positive coefficient (0.398) indicates that males are more likely to report a scam compared to the reference gender.
+* Type Of Fraud Y: A positive coefficient (0.562) suggests that this type of fraud is more likely to be reported.
+* Province State Z: A negative coefficient (-0.173) indicates that residents of this province/state are less likely to report scams compared to the reference province/state.
+Significance:
+* The p-values for all predictors are less than 0.05, indicating that they significantly affect the likelihood of reporting scams.
+
+* The logistic regression analysis shows that age, gender, type of fraud, and province/state significantly influence the likelihood of reporting scams to law enforcement. This information can help in understanding the reporting behaviour and designing targeted interventions to encourage scam reporting among different demographic groups and regions.
+
+### Analytical Analysis Results: {.tabset .tabset-fade .tabset-pills -}
+
+#### Number of Complaints Across Provinces - ANOVA test {-}
+
+<div class="table-container">
+| Variables         | Df  |Sum Sq | Mean Sq | F value | Pr(>F)|
+|:-----------|:-------|:-------|:-------|:------|:-------|
+| Province_State    | `r format(Df_h5[1], scientific = TRUE, digits = 2)`   |`r format(Sum_Sq_h5[1], scientific = TRUE, digits = 2)` |`r format(Mean_Sq_h5[1], scientific = TRUE, digits = 2)`|`r format(F_value_h5[1], scientific = TRUE, digits = 2)` | `r format(Pr_F_h5[1], scientific = TRUE, digits = 2)` |
+| Residuals         | `r format(Df_h5[2], scientific = TRUE, digits = 2)`  | `r format(Sum_Sq_h5[2], scientific = TRUE, digits = 2)` |`r format(Mean_Sq_h5[2], scientific = TRUE, digits = 2)`|||
+  <div class="caption">Tab 5: Results of ANOVA Test</div>
+</div>
+#### Number of Victim and Outcome of Fraud {-}
+
+```{r results='asis', fig.cap='Relationship between Number of Victim and Outcome of Fraud'}
+print(logistic_regression_model_victim_fraud_categories)
+```
+
+
+## Temporal Analysis {-}
+
+### Hypotheses {-}
+
+-   H7: The frequency of fraud and cybercrime complaints shows significant variation over time, with certain periods experiencing higher incidences.
+-   H8: There are specific months when no fraud and cybercrime complaints are filed, indicating potential reporting patterns or external influences.
+
+### Visual Representation: {.tabset .tabset-fade .tabset-pills -}
+
+#### Individual Scams Over Time Regression Line {-}
+
+```{r results='asis', fig.cap='Individual Scams Over Time'}
+print(individual_scam_trend_over_time_scatter_plot_single_regression_line)
+```
+
+#### Individual Scams Over Time With Multiple Regression Lines {-}
+
+```{r results='asis', fig.cap='Individual Scams Over Time'}
+print(individual_scam_trend_over_time_scatter_plot_multiple_regression_line)
+```
+
+#### Months when no Incident Reported {-}
+
+```{r results='asis', fig.cap='Months when no Incident Reported'}
+print(no_incident_reported_bar_chart_monthly)
+```
+
+### Analytical Analysis {-}
+
+### Analytical Analysis Results: {.tabset .tabset-fade .tabset-pills -}
+
+#### Distribution of Complaint by Month {-}
+
+```{r results='asis', fig.cap='Distribution of Complaint by Month'}
+print(time_series_decomposition_victim_trend)
+```
+
+# Discussion {-}
+
+* Demographic Factors
+  * Age:
+    - Older individuals are more likely to report fraud. This suggests the need for targeted outreach to younger demographics to increase their reporting rates.
+  * Gender:
+    - Males are more likely to report fraud than females. This indicates that females might require more support and encouragement to report fraud incidents.
+   
+* Regional Variations
+  * Province/State:
+    - Significant differences in financial losses and reporting rates across provinces/states suggest that regional factors such as local policies, awareness programs, and law enforcement practices play a crucial role.
+    - Tailored strategies are needed for regions with lower reporting rates and higher financial losses.
+
+* Policy Implications
+  * Targeted Awareness Campaigns:
+    - Develop campaigns aimed at younger individuals and females to encourage reporting and increase awareness of fraud and cybercrime.
+  * Regional Strategies:
+    - Implement region-specific policies and support systems to address the unique challenges and patterns of fraud in different provinces/states.
+  * Enhanced Reporting Mechanisms:
+    - Simplify and promote reporting processes to make it easier for victims to report fraud incidents, ensuring consistent support across all regions.
+  * Support Services:
+    - Provide targeted support services for demographics less likely to report fraud, such as younger individuals and females, to build confidence in the reporting system.
+   
+* Areas for Future Research
+  * Behavioral Studies:
+    - Investigate the behavioral factors influencing the likelihood of reporting fraud among different demographics.
+  * Regional Analysis:
+    - Conduct in-depth studies to understand the regional factors contributing to variations in financial losses and reporting rates.
+  * Impact of Awareness Programs:
+    - Evaluate the effectiveness of current fraud awareness and prevention programs and identify areas for improvement.
+  * Longitudinal Studies:
+    - Perform longitudinal studies to track changes in fraud patterns, reporting rates, and the effectiveness of interventions over time.
+
+
+# Conclusion {-}
+
+The comprehensive analysis of fraud and cybercrime complaints in Canada from 2021 to 2024 reveals significant insights into the demographic and regional patterns of victimization and reporting behaviours. Through a series of statistical tests, including ANOVA and logistic regression, we have identified critical factors that influence financial losses and the likelihood of reporting fraud. \
+
+This study provides a detailed analysis of the demographic and regional patterns in fraud and cybercrime complaints in Canada, highlighting significant factors that influence financial losses and reporting behaviours. The findings underscore the importance of targeted awareness campaigns, regional strategies, and enhanced reporting mechanisms to combat fraud effectively. Future research should focus on understanding the behavioural aspects of reporting and the regional factors contributing to fraud patterns to inform more effective policy measures.
+
+# References
+

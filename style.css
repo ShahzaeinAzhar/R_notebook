@@ -1,0 +1,106 @@
+p.caption,
+.caption {
+    text-align: center;
+    color: gray;
+    font-style: italic;
+    margin-top: 15px;
+}
+
+.date {
+    font-size: 1.2em;
+    color: black;
+}
+
+/* .caption {
+    text-align: center;
+    color: gray;
+    font-style: italic;
+} */
+
+.table-container {
+    text-align: center;
+}
+
+pre {
+    height: 300px;
+    overflow-y: scroll;
+}
+
+/* Change background color of active tab */
+.nav.nav-pills>li.active>a {
+    background-color: gray;
+}
+
+/* Change background color of inactive tabs */
+.nav.nav-pills>li>a {
+    background-color: #f5f5f5;
+}
+
+/* Change text color of all tabs */
+.nav.nav-pills>li>a {
+    color: #333;
+}
+
+/* Change text color of active tab */
+.nav.nav-pills>li.active>a {
+    color: #fff;
+}
+
+.csl-bib-body {
+    list-style-type: none; /* Remove the default list style */
+    padding-left: 0;       /* Remove default padding */
+}
+
+.csl-entry {
+    display: list-item;         /* Treat each entry as a list item */
+    list-style-type: disc;      /* Use disc bullets */
+    margin-left: 20px;          /* Add margin to indent the bullets */
+    text-indent: -20px;         /* Negative text-indent to align text properly with bullets */
+    padding-left: 40px;         /* Add padding to align text properly */
+    margin-bottom: 10px;        /* Add some space between entries */
+    position: relative;         /* Ensure proper positioning */
+}
+
+ul.csl-bib-body {
+    padding-left: 20px;
+}
+
+body {
+  text-align: justify
+}
+
+h1 {
+  font-size: 30px;
+}
+
+h2 {
+  font-size: 26px;
+}
+
+h3 {
+  font-size: 22px;
+}
+
+h1.title {
+  text-align: center;
+}
+
+h3.subtitle {
+  text-align: center;
+  font-size: 18px;
+}
+
+h4.author {
+  text-align: center;
+  font-size: 16px;
+}
+
+h4.date {
+  text-align: center;
+  font-size: 16px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    counter-reset: none;
+    counter-increment: none;
+}
