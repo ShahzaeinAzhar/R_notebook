@@ -114,7 +114,13 @@ accessible_palette <- c(
 #
 # ==========================================================================================================
 
-data <- read.csv(file="C:/users/Fujitsu/Desktop/R-project/fraud_detection.csv", check.names = FALSE, header = TRUE)
+file_path <- if (Sys.info()["sysname"] == "Windows") {
+  normalizePath("C:/users/Fujitsu/Desktop/R_notebook/fraud_detection.csv")
+} else {
+  normalizePath("~/Repos/R_Code/canada_online_scam/fraud_detection.csv")
+}
+
+data <- read.csv(file=file_path, check.names = FALSE, header = TRUE)
 
 # Rename columns
 renamed_col <- data %>%
@@ -838,7 +844,7 @@ no_incident_reported_bar_chart_monthly <- ggplot(date_counts_monthly, aes(x = Ye
 #
 # ==========================================================================================================
 
-data <- read.csv(file = "C:/users/Fujitsu/Desktop/R-project/fraud_detection.csv", check.names = FALSE, header = TRUE, row.names = NULL)
+data <- read.csv(file = file_path, check.names = FALSE, header = TRUE, row.names = NULL)
 
 # Rename columns
 renamed_col <- data %>%
@@ -954,11 +960,23 @@ cleaned_data$Dollar_Loss <- as.numeric(sub("\\$", "", cleaned_data$Dollar_Loss))
 # Rename the Dollar_Loss column
 names(cleaned_data)[names(cleaned_data) == "Dollar_Loss"] <- "Dollar_Loss_(CAD)"
 
-# write.xlsx(filtered_data$cleaned_data, file = "C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")  # Change to .xlsx for Excel compatibility
-# write.xlsx(filtered_data$unwanted_data, file = "C:/users/Fujitsu/Desktop/R-project/unwanted_data.xlsx") # Change to .xlsx for Excel compatibility
+# file_path_unwanted <- if (Sys.info()["sysname"] == "Windows") {
+#   normalizePath("C:/users/Fujitsu/Desktop/R_notebook/unwanted_data.xlsx")
+# } else {
+#   normalizePath("~/Repos/R_Code/canada_online_scam/unwanted_data.xlsx")
+# }
+
+# write.xlsx(filtered_data$cleaned_data, file = file_path)  # Change to .xlsx for Excel compatibility
+# write.xlsx(filtered_data$unwanted_data, file = file_path_unwanted) # Change to .xlsx for Excel compatibility
 # 
 # # Set Dollar_Loss_(CAD) column as text format
-# write.xlsx(cleaned_data, file = "C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx", sheet.name = "Cleaned_Data", colNames = TRUE, rowNames = TRUE) # Change to .xlsx for Excel compatibility
+# write.xlsx(cleaned_data, file = file_path, sheet.name = "Cleaned_Data", colNames = TRUE, rowNames = TRUE) # Change to .xlsx for Excel compatibility
+
+file_path <- if (Sys.info()["sysname"] == "Windows") {
+  normalizePath("C:/users/Fujitsu/Desktop/R_notebook/cleaned_data.xlsx")
+} else {
+  normalizePath("~/Repos/R_Code/canada_online_scam/cleaned_data.xlsx")
+}
 
 
 
@@ -969,7 +987,7 @@ names(cleaned_data)[names(cleaned_data) == "Dollar_Loss"] <- "Dollar_Loss_(CAD)"
 #
 # ==========================================================================================================
 
-chi_square_gender_complaint <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+chi_square_gender_complaint <- read.xlsx(file_path)
 
 # Create a contingency table
 cont_table <- table(chi_square_gender_complaint$Gender, chi_square_gender_complaint$Complaint_Type)
@@ -984,7 +1002,7 @@ chi_sq_result <- chisq.test(cont_table)
 #
 # ==========================================================================================================
 
-regression_gender_scam_types <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+regression_gender_scam_types <- read.xlsx(file_path)
 
 # Rename any empty column names
 names(regression_gender_scam_types)[names(regression_gender_scam_types) == ""] <- "Unnamed"
@@ -1087,7 +1105,7 @@ plot_female <- ggplot(plot_data, aes(x = Coefficient_GenderFemale, y = reorder(S
 #
 # ==========================================================================================================
 
-anova_test_fraud_type_and_age <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+anova_test_fraud_type_and_age <- read.xlsx(file_path)
 
 # Create a subset of the data with relevant columns
 subset_data_for_h3 <- anova_test_fraud_type_and_age[, c("Victim_Age_Range", "Fraud_and_Cybercrime_Thematic_Categories")]
@@ -1118,7 +1136,7 @@ summary(anova_result_h3)
 #
 # ==========================================================================================================
 
-relation_age_gender_dollar_loss <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+relation_age_gender_dollar_loss <- read.xlsx(file_path)
 
 
 # Subset the data to include relevant columns
@@ -1160,7 +1178,7 @@ relationship_age_gender_dollar_loss <- ggplot(subset_data_for_h4, aes(x = Gender
 #
 # ==========================================================================================================
 
-no_of_complaint_provinces <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+no_of_complaint_provinces <- read.xlsx(file_path)
 
 no_of_complaint_provinces_h5 <- no_of_complaint_provinces %>%
   select(Province_State, Fraud_and_Cybercrime_Thematic_Categories, Number_of_Victims) %>%
@@ -1189,7 +1207,7 @@ Pr_F_h5 <- anova_summary_h5[[1]]$`Pr(>F)`
 #
 # ==========================================================================================================
 
-specific_scam_in_provinces <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+specific_scam_in_provinces <- read.xlsx(file_path)
 
 # Filter out missing values and subset the necessary columns
 specific_scam_in_provinces_h6 <- specific_scam_in_provinces %>%
@@ -1284,7 +1302,7 @@ logistic_regression_model_victim_fraud_categories <- ggplot(coefs_df, aes(x = Ca
 #
 # ==========================================================================================================
 
-no_victims_trends_seasonal_cyclical <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+no_victims_trends_seasonal_cyclical <- read.xlsx(file_path)
 
 # Ensure Date_Received is in Date format
 no_victims_trends_seasonal_cyclical$Date_Received <- as.Date(no_victims_trends_seasonal_cyclical$Date_Received)
@@ -1412,7 +1430,7 @@ print(expected_values_in_dataset)
 ```
 
 ```{r results='asis'}
-data_clean_notebook <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/cleaned_data.xlsx")
+data_clean_notebook <- read.xlsx(file_path)
 ```
 
 Finally, here are our final dataset with all expected values and without any missing data. In the final dataset we have `r format(nrow(data_clean_notebook), big.mark = ",")` number of rows and `r ncol(data_clean_notebook)` number of columns 
@@ -1425,7 +1443,12 @@ cat("<div style='text-align:center; color: grey;font-style: italic;'>Tab 1: Data
 It is noticeable that there are numerous fields in which there are no values. This is illustrated in the following table:
 
 ```{r, results = "asis"}
-data_unclean_notebook <- read.xlsx("C:/users/Fujitsu/Desktop/R-project/unwanted_data.xlsx")
+file_path <- if (Sys.info()["sysname"] == "Windows") {
+  normalizePath("C:/users/Fujitsu/Desktop/R_notebook/unwanted_data.xlsx")
+} else {
+  normalizePath("~/Repos/R_Code/canada_online_scam/unwanted_data.xlsx")
+}
+data_unclean_notebook <- read.xlsx(file_path)
 paged_table(data_unclean_notebook, options = list(cols.print = 15))
 cat("<div style='text-align:center; color: grey;font-style: italic;'>Tab 2: NA Counts</div>")
 ```
